@@ -18,6 +18,10 @@ SelectPdf HTML To PDF Online REST API is a professional solution that lets you c
 
 Sign up for for free to get instant API access to SelectPdf [HTML to PDF API](https://selectpdf.com/html-to-pdf-api/).
 
+## Installation
+
+Install SelectPdf Java Client for Online API via Maven: [SelectPdf on Maven](https://search.maven.org/artifact/com.selectpdf/selectpdf-api-client).
+
 ## Sample Code
 
 ```
