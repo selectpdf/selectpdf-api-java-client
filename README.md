@@ -20,7 +20,37 @@ Sign up for for free to get instant API access to SelectPdf [HTML to PDF API](ht
 
 ## Installation
 
-Install SelectPdf Java Client for Online API via Maven: [SelectPdf on Maven](https://search.maven.org/artifact/com.selectpdf/selectpdf-api-client).
+Download [selectpdf-api-java-client-1.0.0.zip](https://github.com/selectpdf/selectpdf-api-java-client/releases/download/1.0.0/selectpdf-api-java-client-1.0.0.zip), unzip it and copy selectpdf-api-client-1.0.0.jar to your CLASSPATH.
+
+OR
+
+Install SelectPdf Java Client for Online API via Maven: [SelectPdf on Maven](https://search.maven.org/artifact/com.selectpdf/selectpdf-api-client/1.0.0/jar).
+
+```
+<dependency>
+  <groupId>com.selectpdf</groupId>
+  <artifactId>selectpdf-api-client</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+OR
+
+Install the client library by Gradle (e.g. for Android Studio) from Maven by adding the following line to your Gradle dependencies:
+
+```
+implementation 'com.selectpdf:selectpdf-api-client:1.0.0'
+```
+
+OR
+
+Clone [selectpdf-api-java-client](https://github.com/selectpdf/selectpdf-api-java-client) from Github and build the library.
+
+```
+git clone https://github.com/selectpdf/selectpdf-api-java-client
+cd selectpdf-api-java-client
+mvn install
+```
 
 ## Sample Code
 
