@@ -48,5 +48,5 @@ public class UsageClient extends ApiClient {
         {
             throw new ApiException("Could not get API usage.");
         }
-}
+    }
 }
