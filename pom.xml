@@ -6,12 +6,22 @@
 
   <groupId>com.selectpdf</groupId>
   <artifactId>selectpdf-api-client</artifactId>
-  <version>1.0.0</version>
+  <version>1.4.0</version>
 
   <name>SelectPdf.Api</name>
   <url>https://selectpdf.com/html-to-pdf-api/</url>
   <description>Java client for SelectPdf Online REST API on https://selectpdf.com/html-to-pdf-api/</description>
 
+  <!-- 
+  <dependencies>
+    <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>20220320</version>
+    </dependency>
+  </dependencies>
+  -->
+  
   <scm>
     <connection>scm:git:git@github.com:selectpdf/selectpdf-api-java-client.git</connection>
     <developerConnection>scm:git:git@github.com:selectpdf/selectpdf-api-java-client.git</developerConnection>
@@ -104,6 +114,9 @@
                       <Built-By>SelectPdf</Built-By>
                   </manifestEntries>
               </archive>
+              <excludes>
+                <exclude>**/*.scc</exclude>
+              </excludes>
           </configuration>
         </plugin>        
         <plugin>
