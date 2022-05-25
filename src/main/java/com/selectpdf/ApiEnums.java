@@ -15,6 +15,10 @@ public class ApiEnums {
          */
         Custom,
         /**
+         * A0 page size.
+         */
+        A0,
+        /**
          * A1 page size.
          */
         A1,
@@ -34,6 +38,18 @@ public class ApiEnums {
          * A5 page size.
          */
         A5,
+        /**
+         * A6 page size.
+         */
+        A6,
+        /**
+         * A7 page size.
+         */
+        A7,
+        /**
+         * A8 page size.
+         */
+        A8,
         /**
          * Letter page size.
          */
@@ -245,4 +261,59 @@ public class ApiEnums {
         Manual
     }
     
+    /**
+     * The output text layout (for pdf to text calls).
+     */
+    public enum TextLayout 
+    {
+        /**
+         * The original layout of the text from the PDF document is preserved.
+         */
+        Original(0),
+        /**
+         * The text is produced in reading order.
+         */
+        Reading(1);
+
+        private int value;
+        TextLayout(int value) {
+            this.value = value;
+        }
+
+        int getValue() {
+            return value;
+        }
+
+        String getValueAsString() {
+            return Integer.toString(value);
+        }
+    }
+
+    /**
+     * The output format (for pdf to text calls).
+     */
+    public enum OutputFormat
+    {
+        /**
+         * Text
+         */
+        Text(0),
+        /**
+         * Html
+         */
+        Html(1);
+ 
+        private int value;
+        OutputFormat(int value) {
+            this.value = value;
+        }
+
+        int getValue() {
+            return value;
+        }
+
+        String getValueAsString() {
+            return Integer.toString(value);
+        }
+   }
 }
