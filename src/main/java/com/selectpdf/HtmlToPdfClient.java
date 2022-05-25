@@ -1,9 +1,90 @@
 package com.selectpdf;
 
 import java.io.*;
+import java.util.*;
 
 /**
  * Html To Pdf Conversion with SelectPdf Online API.
+ * 
+ * <pre>
+ * {@code
+package com.selectpdf;
+
+public class HtmlToPdfMain {
+    public static void main(String[] args) throws Exception {
+        String url = "https://selectpdf.com";
+        String localFile = "Test.pdf";
+        String apiKey = "Your API key here";
+
+        System.out.println(String.format("This is SelectPdf-%s.", ApiClient.CLIENT_VERSION));
+
+        try {
+            HtmlToPdfClient client = new HtmlToPdfClient(apiKey);
+
+            // set parameters - see full list at https://selectpdf.com/html-to-pdf-api/
+            client
+                // main properties
+
+                .setPageSize(ApiEnums.PageSize.A4) // PDF page size
+                .setPageOrientation(ApiEnums.PageOrientation.Portrait) // PDF page orientation
+                .setMargins(0) // PDF page margins
+                .setRenderingEngine(ApiEnums.RenderingEngine.WebKit) // rendering engine
+                .setConversionDelay(1) // conversion delay
+                .setNavigationTimeout(30) // navigation timeout 
+                .setShowPageNumbers(false) // page numbers
+                .setPageBreaksEnhancedAlgorithm(true) // enhanced page break algorithm
+
+                // additional properties
+
+                // .setUseCssPrint(true) // enable CSS media print
+                // .setDisableJavascript(true) // disable javascript
+                // .setDisableInternalLinks(true) // disable internal links
+                // .setDisableExternalLinks(true) // disable external links
+                // .setKeepImagesTogether(true) // keep images together
+                // .setScaleImages(true) // scale images to create smaller pdfs
+                // .setSinglePagePdf(true) // generate a single page PDF
+                // .setUserPassword("password") // secure the PDF with a password
+
+                // generate automatic bookmarks
+
+                // .setPdfBookmarksSelectors("H1, H2") // create outlines (bookmarks) for the specified elements
+                // .setViewerPageMode(ApiEnums.PageMode.UseOutlines) // display outlines (bookmarks) in viewer
+            ;
+
+            System.out.println("Starting conversion...");
+
+            // convert url to file
+            client.convertUrlToFile(url, localFile);
+
+            // convert url to memory
+            // byte[] pdf = client.convertUrl(url);
+
+            // convert html string to file
+            // client.convertHtmlStringToFile("This is some <b>html</b>.", localFile);
+
+            // convert html string to memory
+            // byte[] pdf = client.convertHtmlString("This is some <b>html</b>.");
+
+            System.out.println(String.format("Finished! Number of pages: %d.", client.getNumberOfPages()));
+
+            // get API usage
+            UsageClient usageClient = new UsageClient(apiKey);
+            String usage = usageClient.getUsage(false);
+            System.out.printf("Usage details: %s.\r\n", usage);
+
+            // org.json.JSONObject usageObject = new org.json.JSONObject(usage);
+            // int available = usageObject.getInt("available");
+            // System.out.printf("Conversions remained this month: %d.\r\n", available);
+
+        }
+        catch (Exception ex) {
+            System.out.println("An error occured: " + ex.getMessage());
+        }
+    }
+        
+}
+ * }
+ * </pre>
  */
 public class HtmlToPdfClient extends ApiClient {
     /**
@@ -31,6 +112,9 @@ public class HtmlToPdfClient extends ApiClient {
             throw new ApiException("Cannot convert local urls. SelectPdf online API can only convert publicly available urls.");
         }
         parameters.put("url", url);
+        parameters.put("html", "");
+        parameters.put("base_url", "");
+        parameters.put("async", "False");
 
         return performPost(null);
     }
@@ -51,6 +135,9 @@ public class HtmlToPdfClient extends ApiClient {
             throw new ApiException("Cannot convert local urls. SelectPdf online API can only convert publicly available urls.");
         }
         parameters.put("url", url);
+        parameters.put("html", "");
+        parameters.put("base_url", "");
+        parameters.put("async", "False");
 
         performPost(stream);
     }
@@ -67,6 +154,97 @@ public class HtmlToPdfClient extends ApiClient {
 
         try {
             convertUrlToStream(url, outputFile);
+            outputFile.close();
+        }
+        catch(ApiException ex) {
+            outputFile.close();
+            new File(filePath).delete();
+            throw ex;
+        }
+
+    }
+
+    /**
+     * Convert the specified url to PDF using an asynchronous call. 
+     * SelectPdf online API can convert http:// and https:// publicly available urls. 
+     * @param url Address of the web page being converted.
+     * @return Byte array containing the resulted PDF.
+     */
+    public byte[] convertUrlAsync(String url)
+    {
+        if (!url.startsWith("http://", 0) && !url.startsWith("https://", 0))
+        {
+            throw new ApiException("The supported protocols for the converted webpage are http:// and https://.");
+        }
+        if (url.startsWith("http://localhost", 0))
+        {
+            throw new ApiException("Cannot convert local urls. SelectPdf online API can only convert publicly available urls.");
+        }
+        parameters.put("url", url);
+        parameters.put("html", "");
+        parameters.put("base_url", "");
+
+        String JobID = startAsyncJob();
+
+        if (JobID == null || JobID.isBlank()) {
+            throw new ApiException("An error occurred launching the asynchronous call.");
+        }
+
+        int noPings = 0;
+
+        do
+        {
+            noPings++;
+
+            // sleep for a few seconds before next ping
+            try {
+                java.util.concurrent.TimeUnit.SECONDS.sleep(AsyncCallsPingInterval);
+            }
+            catch (InterruptedException ex) {}
+
+            AsyncJobClient asyncJobClient = new AsyncJobClient(parameters.get("key"), JobID);
+            asyncJobClient.setApiEndpoint(apiAsyncEndpoint);
+
+            byte[] result = asyncJobClient.getResult();
+
+            if (asyncJobClient.finished())
+            {
+                numberOfPages = asyncJobClient.getNumberOfPages();
+
+                return result;
+            }
+
+        } while (noPings <= AsyncCallsMaxPings);
+
+        throw new ApiException("Asynchronous call did not finish in expected timeframe.");    
+    }
+
+    /**
+     * Convert the specified url to PDF using an asynchronous call and writes the resulted PDF to an output stream. 
+     * SelectPdf online API can convert http:// and https:// publicly available urls.
+     * @param url Address of the web page being converted.
+     * @param stream The output stream where the resulted PDF will be written.
+     */
+    public void convertUrlToStreamAsync(String url, OutputStream stream) throws IOException
+    {
+        byte[] result = convertUrlAsync(url);
+        stream.write(result);
+    }
+
+    /**
+     * Convert the specified url to PDF using an asynchronous call and writes the resulted PDF to a local file. 
+     * SelectPdf online API can convert http:// and https:// publicly available urls.
+     * @param url Address of the web page being converted.
+     * @param filePath Local file including path if necessary.
+     * @throws IOException
+     */
+    public void convertUrlToFileAsync(String url, String filePath) throws IOException
+    {
+        FileOutputStream outputFile = new FileOutputStream(filePath);
+
+        try {
+            byte[] result = convertUrlAsync(url);
+            outputFile.write(result);
             outputFile.close();
         }
         catch(ApiException ex) {
@@ -96,6 +274,8 @@ public class HtmlToPdfClient extends ApiClient {
     public byte[] convertHtmlString(String htmlString, String baseUrl)
     {
         parameters.put("html", htmlString);
+        parameters.put("url", "");
+        parameters.put("async", "False");
 
         if (baseUrl != null && !baseUrl.isBlank())
         {
@@ -124,6 +304,8 @@ public class HtmlToPdfClient extends ApiClient {
     public void convertHtmlStringToStream(String htmlString, String baseUrl, OutputStream stream)
     {
         parameters.put("html", htmlString);
+        parameters.put("url", "");
+        parameters.put("async", "False");
 
         if (baseUrl != null && !baseUrl.isBlank())
         {
@@ -154,6 +336,8 @@ public class HtmlToPdfClient extends ApiClient {
     public void convertHtmlStringToFile(String htmlString, String baseUrl, String filePath) throws IOException
     {
         parameters.put("html", htmlString);
+        parameters.put("url", "");
+        parameters.put("async", "False");
 
         if (baseUrl != null && !baseUrl.isBlank())
         {
@@ -165,6 +349,123 @@ public class HtmlToPdfClient extends ApiClient {
         try
         {
             performPost(outputFile);
+            outputFile.close();
+        }
+        catch(ApiException ex) {
+            outputFile.close();
+            new File(filePath).delete();
+            throw ex;
+        }
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call.
+     * @param htmlString HTML string with the content being converted.
+     * @return Byte array containing the resulted PDF.
+     */
+    public byte[] convertHtmlStringAsync(String htmlString)
+    {
+        return convertHtmlStringAsync(htmlString, "");
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call. Use a base url to resolve relative paths to resources.
+     * @param htmlString HTML string with the content being converted.
+     * @param baseUrl Base url used to resolve relative paths to resources (css, images, javascript, etc). Must be a http:// or https:// publicly available url.
+     * @return Byte array containing the resulted PDF.
+     */
+    public byte[] convertHtmlStringAsync(String htmlString, String baseUrl)
+    {
+        parameters.put("html", htmlString);
+        parameters.put("url", "");
+
+        if (baseUrl != null && !baseUrl.isBlank())
+        {
+            parameters.put("base_url", baseUrl);
+        }
+
+        String JobID = startAsyncJob();
+
+        if (JobID == null || JobID.isBlank()) {
+            throw new ApiException("An error occurred launching the asynchronous call.");
+        }
+
+        int noPings = 0;
+
+        do
+        {
+            noPings++;
+
+            // sleep for a few seconds before next ping
+            try {
+                java.util.concurrent.TimeUnit.SECONDS.sleep(AsyncCallsPingInterval);
+            }
+            catch (InterruptedException ex) {}
+
+            AsyncJobClient asyncJobClient = new AsyncJobClient(parameters.get("key"), JobID);
+            asyncJobClient.setApiEndpoint(apiAsyncEndpoint);
+
+            byte[] result = asyncJobClient.getResult();
+
+            if (asyncJobClient.finished())
+            {
+                numberOfPages = asyncJobClient.getNumberOfPages();
+
+                return result;
+            }
+
+        } while (noPings <= AsyncCallsMaxPings);
+
+        throw new ApiException("Asynchronous call did not finish in expected timeframe.");    
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call and writes the resulted PDF to an output stream.
+     * @param htmlString HTML string with the content being converted.
+     * @param stream The output stream where the resulted PDF will be written.
+     */
+    public void convertHtmlStringToStreamAsync(String htmlString, OutputStream stream) throws IOException
+    {
+        convertHtmlStringToStreamAsync(htmlString, "", stream);
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call and writes the resulted PDF to an output stream. Use a base url to resolve relative paths to resources.
+     * @param htmlString HTML string with the content being converted.
+     * @param baseUrl Base url used to resolve relative paths to resources (css, images, javascript, etc). Must be a http:// or https:// publicly available url.
+     * @param stream The output stream where the resulted PDF will be written.
+     */
+    public void convertHtmlStringToStreamAsync(String htmlString, String baseUrl, OutputStream stream) throws IOException
+    {
+        byte[] result = convertHtmlStringAsync(htmlString, baseUrl);
+        stream.write(result);
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call and writes the resulted PDF to a local file.
+     * @param htmlString HTML string with the content being converted.
+     * @param filePath Local file including path if necessary.
+     * @throws IOException
+     */
+    public void convertHtmlStringToFileAsync(String htmlString, String filePath) throws IOException
+    {
+        convertHtmlStringToFileAsync(htmlString, "", filePath);
+    }
+
+    /**
+     * Convert the specified HTML string to PDF with an asynchronous call and writes the resulted PDF to a local file. Use a base url to resolve relative paths to resources.
+     * @param htmlString HTML string with the content being converted.
+     * @param baseUrl Base url used to resolve relative paths to resources (css, images, javascript, etc). Must be a http:// or https:// publicly available url.
+     * @param filePath Local file including path if necessary.
+     * @throws IOException
+     */
+    public void convertHtmlStringToFileAsync(String htmlString, String baseUrl, String filePath) throws IOException
+    {
+        FileOutputStream outputFile = new FileOutputStream(filePath);
+
+        try {
+            byte[] result = convertHtmlStringAsync(htmlString, baseUrl);
+            outputFile.write(result);
             outputFile.close();
         }
         catch(ApiException ex) {
@@ -745,6 +1046,29 @@ public class HtmlToPdfClient extends ApiClient {
     }
 
     /**
+     * Set the width in pixels used by the converter's internal browser window during the conversion of the header content. The default value is 1024px.
+     * @param headerWebPageWidth Browser window width in pixels.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setHeaderWebPageWidth(int headerWebPageWidth)
+    {
+        parameters.put("header_web_page_width", Integer.toString(headerWebPageWidth));
+        return this;
+    }
+
+    /**
+     * Set the height in pixels used by the converter's internal browser window during the conversion of the header content.
+     * The default value is 0px and it means that the page height is automatically calculated by the converter.
+     * @param headerWebPageHeight Browser window height in pixels. Set it to 0px to automatically calculate page height.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setHeaderWebPageHeight(int headerWebPageHeight)
+    {
+        parameters.put("header_web_page_height", Integer.toString(headerWebPageHeight));
+        return this;
+    }
+    
+    /**
      * Control if a custom footer is displayed in the generated PDF document. The default value is False.
      * @param showFooter Show footer or not.
      * @return Reference to the current object.
@@ -864,6 +1188,29 @@ public class HtmlToPdfClient extends ApiClient {
     }
 
     /**
+     * Set the width in pixels used by the converter's internal browser window during the conversion of the footer content. The default value is 1024px.
+     * @param footerWebPageWidth Browser window width in pixels.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setFooterWebPageWidth(int footerWebPageWidth)
+    {
+        parameters.put("footer_web_page_width", Integer.toString(footerWebPageWidth));
+        return this;
+    }
+
+    /**
+     * Set the height in pixels used by the converter's internal browser window during the conversion of the footer content.
+     * The default value is 0px and it means that the page height is automatically calculated by the converter.
+     * @param footerWebPageHeight Browser window height in pixels. Set it to 0px to automatically calculate page height.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setFooterWebPageHeight(int footerWebPageHeight)
+    {
+        parameters.put("footer_web_page_height", Integer.toString(footerWebPageHeight));
+        return this;
+    }
+
+    /**
      * Show page numbers. Default value is True. Page numbers will be displayed in the footer of the PDF document.
      * @param showPageNumbers Show page numbers or not.
      * @return Reference to the current object.
@@ -971,7 +1318,7 @@ public class HtmlToPdfClient extends ApiClient {
      * Generate automatic bookmarks in pdf. The elements that will be bookmarked are defined using CSS selectors. 
      * For example, the selector for all the H1 elements is "H1", the selector for all the elements with the CSS class name 'myclass' is "*.myclass" and 
      * the selector for the elements with the id 'myid' is "*#myid". Read more about CSS selectors <a href="http://www.w3schools.com/cssref/css_selectors.asp" target="_blank">here</a>.
-     * @param selectors CSS selectors used to identify HTML elements.
+     * @param selectors CSS selectors used to identify HTML elements, comma separated..
      * @return Reference to the current object.
      */
     public HtmlToPdfClient setPdfBookmarksSelectors(String selectors)
@@ -984,7 +1331,7 @@ public class HtmlToPdfClient extends ApiClient {
      * Exclude page elements from the conversion. The elements that will be excluded are defined using CSS selectors. 
      * For example, the selector for all the H1 elements is "H1", the selector for all the elements with the CSS class name 'myclass' is "*.myclass" and 
      * the selector for the elements with the id 'myid' is "*#myid". Read more about CSS selectors <a href="http://www.w3schools.com/cssref/css_selectors.asp" target="_blank">here</a>.
-     * @param selectors CSS selectors used to identify HTML elements.
+     * @param selectors CSS selectors used to identify HTML elements, comma separated..
      * @return Reference to the current object.
      */
     public HtmlToPdfClient setPdfHideElements(String selectors)
@@ -1003,6 +1350,19 @@ public class HtmlToPdfClient extends ApiClient {
     public HtmlToPdfClient setPdfShowOnlyElementID(String elementID)
     {
         parameters.put("pdf_show_only_element_id", elementID);
+        return this;
+    }
+
+    /**
+     * Get the locations of page elements from the conversion. The elements that will have their locations retrieved are defined using CSS selectors. 
+     * For example, the selector for all the H1 elements is "H1", the selector for all the elements with the CSS class name 'myclass' is "*.myclass" and 
+     * the selector for the elements with the id 'myid' is "*#myid". Read more about CSS selectors <a href="http://www.w3schools.com/cssref/css_selectors.asp" target="_blank">here</a>.
+     * @param selectors CSS selectors used to identify HTML elements, comma separated..
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setPdfWebElementsSelectors(String selectors)
+    {
+        parameters.put("pdf_web_elements_selectors", selectors);
         return this;
     }
 
@@ -1065,5 +1425,37 @@ public class HtmlToPdfClient extends ApiClient {
         parameters.put("page_breaks_enhanced_algorithm", Boolean.toString(enableEnhancedPageBreaksAlgorithm));
         return this;
     }
-    
+
+    /**
+     * Set HTTP cookies for the web page being converted.
+     * @param cookies HTTP cookies that will be sent to the page being converted.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setCookies(HashMap<String, String> cookies) {
+        parameters.put("cookies_string", serializeDictionary(cookies));
+        return this;
+    }
+
+    /**
+     * Set a custom parameter. Do not use this method unless advised by SelectPdf.
+     * @param parameterName Parameter name.
+     * @param parameterValue Parameter value.
+     * @return Reference to the current object.
+     */
+    public HtmlToPdfClient setCustomParameter(String parameterName, String parameterValue) {
+        parameters.put(parameterName, parameterValue);
+        return this;
+    }
+
+    /**
+     * Get the locations of certain web elements. This is retrieved if pdf_web_elements_selectors parameter is set and elements were found to match the selectors.
+     * @return List of web elements locations.
+     */
+    public String getWebElements() {
+        WebElementsClient webElementsClient = new WebElementsClient(parameters.get("key"), jobId);
+        webElementsClient.setApiAsyncEndpoint(apiWebElementsEndpoint);
+
+        String webElements = webElementsClient.getWebElements();
+        return webElements;
+    }
 }
